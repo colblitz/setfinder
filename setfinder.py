@@ -15,19 +15,29 @@ print RBASE
 
 class Card(object):
 	def __init__(self, features):
-		self.features = features
+		self.features = list(features)
 
 	def get_feature(self, n):
 		return self.features[n]
 
+	def get_number(self):
+		return sum(a*b for a,b in zip(RBASE, self.features))
+
 	def __repr__(self):
-		return "".join([str(f) for f in self.features])
+		return "".join([str(f) for f in self.features[::-1]])
 
 	def __eq__(self, other):
+		# print self.features
+		# print other.features
 		return self.features == other.features
 
 	def __hash__(self):
-		return hash(sum(a*b for a,b in zip(RBASE, self.features)))
+		# print "features: ", self.features, " --> ", sum(a*b for a,b in zip(RBASE, self.features))
+		return hash(self.get_number())
+
+	def __cmp__(self, other):
+		# return cmp(other.get_number(), self.get_number())
+		return cmp(self.get_number(), other.get_number())
 
 def generate_deck():
 	d = [Card(c) for c in itertools.product(RTYPES, repeat=NFEATURES)]
@@ -35,6 +45,7 @@ def generate_deck():
 	return d
 
 d = generate_deck()
+# print sorted(d)
 # print d
 # print len(d)
 
@@ -48,7 +59,7 @@ def ref_is_set(cards):
 			s[c.get_feature(f)] = True
 		if len(s) != NTYPES and len(s) != 1:
 			return False
-	print cards, " is a set"
+	# print cards, " is a set"
 	return True
 
 def ref_get_missing(cards):
@@ -66,7 +77,19 @@ def ref_get_missing(cards):
 		# 	features.append(c1.get_feature(f))
 		# else:
 		# 	features.append(NTYPESSUM - c1.get_feature(f) - c2.get_feature(f))
+	# print "ref get missing:", features
 	return Card(features)
+
+def ref_get_set(cards):
+	for pset in itertools.combinations(cards, NTYPES):
+		if ref_is_set(pset):
+			return pset
+	return []
+
+def ref_print_all_sets(cards):
+	for pset in itertools.combinations(cards, NTYPES):
+		if ref_is_set(pset):
+			print pset
 
 # for n in xrange(100):
 #   c1 = get_random_card()
@@ -142,43 +165,142 @@ class RecencyPlayer(Player):
 		self.by_missing = {}
 		self.by_card = {}
 
-	def remove_update(self, card):
-		for m in self.by_card[card]:
-			del self.by_missing[m]
-		del self.by_card[card]
+	def print_by_card(self):
+		for c in self.by_card:
+			print c, ": ", sorted(self.by_card[c])
+
+	def print_by_missing(self):
+		print len(self.by_missing)
+		l = 0
+		for m in self.by_missing.keys():
+			l += len(self.by_missing[m])
+		print l
+		i = 0
+		s = ""
+		for c in self.by_missing.keys():
+			s += "%s: %s  " % (str(c), str(self.by_missing[c]))
+			i += 1
+			if i == 5:
+				print s
+				i = 0
+				s = ""
+		print s
+
+	def remove_update(self, cards):
+		print "remove update with cards: ", cards
+		# self.print_by_missing()
+		# self.print_by_card()
+		remove_from_missing = {}
+		for c in cards:
+			if c in self.by_card:
+				for m in self.by_card[c]:
+					remove_from_missing[m] = 1
+
+		# print " "
+		print "removing: ", sorted(remove_from_missing.keys())
+		for r in remove_from_missing.keys():
+			if r in self.by_missing:
+				if len(self.by_missing[r]) == 1:
+					del self.by_missing[r]
+				else:
+					self.by_missing[r].pop(0)
+		for c in cards:
+			if c in self.by_card:
+				del self.by_card[c]
+		print " "
+		self.print_by_missing()
+		self.print_by_card()
+		# print "removing: ", card
+		# print "missing: ", sorted(self.by_missing.keys())
+		# print "by card: ", sorted(self.by_card.keys())
+		# print "missing to removes: ", sorted(self.by_card[card])
+		# for m in self.by_card[card]:
+		# 	del self.by_missing[m]
+		# del self.by_card[card]
 
 	def make_set(self, card):
 		pset = [card]
-		for c in self.by_missing[card]:
-			pset += c
-			self.remove_update(c)
+		print "make set: ", self.by_missing[card]
+		# get first cards that make set
+		#self.by_missing[card][0]
+		pset += self.by_missing[card][0]
+		print "pset: ", pset
+		self.remove_update(pset)
+		# for c in self.by_missing[card]:
+		# 	print c
+		# 	pset = pset + [c]
+		# 	self.remove_update(c)
+		print "returning ----------------------------------------------------------------"
 		return self.found(pset)
 
 	def get_set(self, board):
+		print "----------------------------------------------------------------"
+		print "getting set"
+		# print board
+		# print sorted(self.by_card.keys())
 		self.start_time()
-		print "board:"
-		print board
+		# print "board:"
+		# print board
 		if not self.by_missing:
 			self.generate_missing(board)
-			print self.by_missing.keys()
-			print self.by_card
+			# print self.by_missing
+			# print self.by_card
+			# print self.by_card
+			# print "keys: ", self.by_missing.keys()
+			# for k in self.by_missing.keys():
+			# 	print type(k)
+			# 	print k.__hash__()
 			for c in board:
-				print c
+				# print "card features: ", c.features
+				# print "card: ", c
+				# print type(c)
+
+				# print c in self.by_missing
 				if c in self.by_missing:
-					print self.by_missing[c]
-					return make_set(c)
+					# print self.by_missing[c]
+					# print "found candidate: ", c
+					return self.make_set(c)
 		# got new cards
 		elif board[-1] not in self.by_card:
+			print "sets:"
+			ref_print_all_sets(board)
+			print "-----"
+
 			l = len(board)
-			for i in range(l-NTYPES, l):
-			# for card in board[:-(NTYPES+1):-1]:
+			for i in range(l):
 				card = board[i]
-				# is a card that finishes a set
 				if card in self.by_missing:
-					return make_set(card)
-				else:
+					print "card finishes a set", card
+					return self.make_set(card)
+				# not in self.by_missing
+				if card not in self.by_card:
+					print "card not in by_card, add to missing and by_card", card
 					for others in itertools.combinations(board[:i], NTYPES-2):
 						self.add_missing([card] + list(others))
+				else:
+					print "card already in by_card", card
+
+
+			#######################################################################
+			# TODO: check if set entirely within old card
+			# print "last not in by_card"
+			# print "sets: "
+			# ref_print_all_sets(board)
+			# print "----"
+			# l = len(board)
+			# for i in range(l-NTYPES, l):
+			# # for card in board[:-(NTYPES+1):-1]:
+			# 	card = board[i]
+			# 	print "card: ", card
+			# 	print sorted(self.by_missing.keys())
+			# 	# is a card that finishes a set
+			# 	if card in self.by_missing:
+			# 		print "new card finishes a set"
+			# 		return self.make_set(card)
+			# 	else:
+			# 		print "new card doesn't finish set"
+			# 		for others in itertools.combinations(board[:i], NTYPES-2):
+			# 			self.add_missing([card] + list(others))
 
 
 		# for card in board[::-1]:
@@ -194,15 +316,21 @@ class RecencyPlayer(Player):
 		return self.found([])
 
 	def add_missing(self, almost):
+		# print almost
+		almost = list(almost)
+		# print almost
 		missing = ref_get_missing(almost)
-		self.by_missing[missing] = list(almost)
+		if missing in self.by_missing:
+			self.by_missing[missing].append(almost)
+		else:
+			self.by_missing[missing] = [almost]
 		for c in almost:
 			if c not in self.by_card:
 				self.by_card[c] = []
 			self.by_card[c].append(missing)
 
 	def generate_missing(self, board):
-		print "generating missing"
+		# print "generating missing"
 		for almost in itertools.combinations(board, NTYPES-1):
 			self.add_missing(almost)
 
@@ -237,8 +365,10 @@ class Game(object):
 		self.start_game()
 		while not self.is_done():
 			# self.print_state()
+			print "---------------------------------------------------------"
+			print "Player finding set from board: ", sorted(self.board)
 			next_set = self.player.get_set(self.board)
-			# print "Found set: " + str(next_set)
+			print "Player found set: " + str(next_set)
 			if len(next_set) == 0:
 				if not self.no_sets():
 					print "player wrongly said no set"
@@ -284,5 +414,10 @@ print a
 print b
 print b in a
 
+c = Card([1, 2, 3, 4])
+a[c] = 5
 
+d = Card([1, 2, 3, 4])
+print c == d
+print d in a
 
