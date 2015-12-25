@@ -91,6 +91,7 @@ def ref_print_all_sets(cards):
 		if ref_is_set(pset):
 			print pset
 
+
 # for n in xrange(100):
 #   c1 = get_random_card()
 #   c2 = get_random_card()
@@ -187,29 +188,44 @@ class RecencyPlayer(Player):
 		print s
 
 	def remove_update(self, cards):
-		print "remove update with cards: ", cards
+		# print "remove update with cards: ", cards
 		# self.print_by_missing()
 		# self.print_by_card()
 		remove_from_missing = {}
 		for c in cards:
 			if c in self.by_card:
+				# print "removing ", sorted(self.by_card[c])
 				for m in self.by_card[c]:
-					remove_from_missing[m] = 1
+					# m is key to by_missing
+					if m in self.by_missing:
+						if len(self.by_missing[m]) == 1:
+							del self.by_missing[m]
+						else:
+							new_pairs = []
+							for pair in self.by_missing[m]:
+								if c not in pair:
+									new_pairs.append(pair)
+							self.by_missing[m] = new_pairs
+
 
 		# print " "
-		print "removing: ", sorted(remove_from_missing.keys())
-		for r in remove_from_missing.keys():
-			if r in self.by_missing:
-				if len(self.by_missing[r]) == 1:
-					del self.by_missing[r]
-				else:
-					self.by_missing[r].pop(0)
+		# print "removing: ", sorted(remove_from_missing.keys())
+
+		# remove all pairs that involve cards
+		# for r in remove_from_missing.keys():
+		# 	if r in self.by_missing:
+		# 		if len(self.by_missing[r]) == 1:
+		# 			del self.by_missing[r]
+		# 		else:
+		# 			self.by_missing[r].pop(0)
 		for c in cards:
+			if c in self.by_missing:
+				del self.by_missing[c]
 			if c in self.by_card:
 				del self.by_card[c]
-		print " "
-		self.print_by_missing()
-		self.print_by_card()
+		# print " "
+		# self.print_by_missing()
+		# self.print_by_card()
 		# print "removing: ", card
 		# print "missing: ", sorted(self.by_missing.keys())
 		# print "by card: ", sorted(self.by_card.keys())
@@ -220,22 +236,22 @@ class RecencyPlayer(Player):
 
 	def make_set(self, card):
 		pset = [card]
-		print "make set: ", self.by_missing[card]
+		# print "make set: ", self.by_missing[card]
 		# get first cards that make set
 		#self.by_missing[card][0]
 		pset += self.by_missing[card][0]
-		print "pset: ", pset
+		# print "pset: ", pset
 		self.remove_update(pset)
 		# for c in self.by_missing[card]:
 		# 	print c
 		# 	pset = pset + [c]
 		# 	self.remove_update(c)
-		print "returning ----------------------------------------------------------------"
+		# print "returning ----------------------------------------------------------------"
 		return self.found(pset)
 
 	def get_set(self, board):
-		print "----------------------------------------------------------------"
-		print "getting set"
+		# print "----------------------------------------------------------------"
+		# print "getting set"
 		# print board
 		# print sorted(self.by_card.keys())
 		self.start_time()
@@ -262,23 +278,24 @@ class RecencyPlayer(Player):
 					return self.make_set(c)
 		# got new cards
 		elif board[-1] not in self.by_card:
-			print "sets:"
-			ref_print_all_sets(board)
-			print "-----"
+			# print "sets:"
+			# ref_print_all_sets(board)
+			# print "-----"
 
 			l = len(board)
 			for i in range(l):
 				card = board[i]
 				if card in self.by_missing:
-					print "card finishes a set", card
+					# print "card finishes a set", card
 					return self.make_set(card)
 				# not in self.by_missing
 				if card not in self.by_card:
-					print "card not in by_card, add to missing and by_card", card
+					# print "card not in by_card, add to missing and by_card", card
 					for others in itertools.combinations(board[:i], NTYPES-2):
 						self.add_missing([card] + list(others))
 				else:
-					print "card already in by_card", card
+					# print "card already in by_card", card
+					pass
 
 
 			#######################################################################
@@ -365,10 +382,10 @@ class Game(object):
 		self.start_game()
 		while not self.is_done():
 			# self.print_state()
-			print "---------------------------------------------------------"
-			print "Player finding set from board: ", sorted(self.board)
+			# print "---------------------------------------------------------"
+			# print "Player finding set from board: ", sorted(self.board)
 			next_set = self.player.get_set(self.board)
-			print "Player found set: " + str(next_set)
+			# print "Player found set: " + str(next_set)
 			if len(next_set) == 0:
 				if not self.no_sets():
 					print "player wrongly said no set"
